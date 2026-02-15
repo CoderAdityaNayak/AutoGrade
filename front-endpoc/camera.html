@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoGrade Scanner</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #5B21B6;
+            --primary-light: #7C3AED;
+            --secondary: #DC2626;
+            --accent: #FBBF24;
+            --glass: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .app-shell {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+        }
+
+        /* Header */
+        .header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 20px 24px;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+            animation: slideDown 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .brand {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 20px rgba(255,255,255,0.1);
+        }
+
+        .camera-info {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            font-size: 11px;
+            font-weight: 500;
+            color: rgba(255,255,255,0.6);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .quality-badge {
+            padding: 4px 8px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 6px;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Video Viewport */
+        #scannerView {
+            display: none;
+            position: absolute;
+            inset: 0;
+        }
+
+        .viewport {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+        }
+
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            animation: zoomIn 1s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Camera Assists */
+        .camera-assists {
+            position: absolute;
+            inset: 0;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .grid-overlay {
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 33.333% 33.333%;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .grid-overlay.active { opacity: 1; }
+
+        .level-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: all 0.3s;
+        }
+
+        .level-indicator.active { opacity: 1; }
+
+        .level-dot {
+            width: 8px;
+            height: 8px;
+            background: #fff;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+
+        .level-indicator.tilted .level-dot {
+            background: var(--accent);
+            animation: pulse 0.6s infinite;
+        }
+
+        .focus-frame {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 320px;
+            height: 320px;
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .focus-frame.active { opacity: 1; }
+
+        .frame-corner {
+            position: absolute;
+            width: 60px;
+            height: 40px;
+            border: 9px solid var(--primary-light);
+            filter: drop-shadow(0 0 10px rgba(200, 96, 17, 0.5));
+        }
+
+        .frame-corner:nth-child(1) { top: 0; left: 0; border-right: none; border-bottom: none; border-radius: 12px 0 0 0; }
+        .frame-corner:nth-child(2) { top: 0; right: 0; border-left: none; border-bottom: none; border-radius: 0 12px 0 0; }
+        .frame-corner:nth-child(3) { bottom: 0; left: 0; border-right: none; border-top: none; border-radius: 0 0 0 12px; }
+        .frame-corner:nth-child(4) { bottom: 0; right: 0; border-left: none; border-top: none; border-radius: 0 0 12px 0; }
+
+        .scan-line {
+            position: absolute;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--primary-light), transparent);
+            filter: drop-shadow(0 0 8px var(--primary-light));
+            top: 0;
+            animation: scanLine 2.5s ease-in-out infinite;
+        }
+
+        @keyframes scanLine {
+            0%, 100% { top: 0; opacity: 0; }
+            10% { opacity: 1; }
+            50% { top: calc(100% - 3px); }
+            90% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        .scan-instruction {
+            position: absolute;
+            bottom: -50px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 13px;
+            font-weight: 500;
+            color: rgba(255,255,255,0.8);
+            white-space: nowrap;
+            text-align: center;
+            animation: fadeInUp 0.6s 0.3s both;
+        }
+
+        /* Preview Pane */
+        #previewPane {
+            position: absolute;
+            inset: 0;
+            z-index: 80;
+            background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%);
+            transform: translateY(100%);
+            transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        #previewPane.active { transform: translateY(0); }
+
+        .preview-header {
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .preview-title {
+            font-size: 17px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+
+        .preview-time {
+            font-size: 13px;
+            font-weight: 500;
+            color: rgba(255,255,255,0.5);
+            display: flex;
+             z-index: 100;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .preview-time::before {
+            content: '🕐';
+             z-index: 100;
+            font-size: 14px;
+        }
+
+        .preview-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 100;
+            overflow: hidden;
+        }
+
+        #previewImage {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Controls */
+        .controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 60;
+            padding: 20px 24px 40px;
+            display: flex;
+            flex-direction: column;
+             z-index: 100;
+            align-items: center;
+            gap: 20px;
+            background: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 12px;
+             z-index: 100;
+            align-items: center;
+        }
+
+        .status-indicator {
+            padding: 8px 16px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            backdrop-filter: blur(20px);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .status-indicator.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            background: #10B981;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .capture-zone {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: opacity 0.3s, transform 0.3s;
+        }
+
+        .capture-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 4px solid rgba(255,255,255,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .capture-btn:active {
+            transform: scale(0.92);
+            border-color: rgba(255,255,255,0.6);
+        }
+
+        .capture-inner {
+            width: 62px;
+            height: 62px;
+            background: #fff;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+
+        .capture-btn:active .capture-inner {
+            width: 58px;
+            height: 58px;
+        }
+
+        .secondary-btn {
+            width: 48px;
+            height: 48px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+             z-index: 100;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 20px;
+        }
+
+        .secondary-btn:active { transform: scale(0.9); }
+
+        .preview-actions {
+            display: none;
+            gap: 12px;
+            width: 100%;
+            max-width: 400px;
+            z-index: 90;        /* Make sure this is higher than the capture-zone */
+            animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .preview-actions.active { display: flex; }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .btn-action {
+            flex: 1;
+            padding: 18px;
+            border-radius: 14px;
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: -0.2px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            backdrop-filter: blur(20px);
+        }
+
+        .btn-action:active { transform: scale(0.96); }
+
+        .btn-retake {
+            background: var(--glass);
+            color: #fff;
+            border: 1px solid var(--glass-border);
+        }
+
+        .btn-confirm {
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+            color: #fff;
+            box-shadow: 0 10px 30px rgba(124, 58, 237, 0.4);
+        }
+
+        /* Permission Error */
+        #permissionError {
+            display: flex;
+            position: absolute;
+            inset: 0;
+            z-index: 200;
+            background: #000;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .error-icon {
+            font-size: 64px;
+            margin-bottom: 24px;
+            animation: bounce 1s ease-in-out infinite;
+        }
+
+        .error-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        .error-message {
+            font-size: 15px;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.6;
+            max-width: 320px;
+        }
+
+        .btn-retry {
+            margin-top: 32px;
+            padding: 14px 32px;
+            background: #fff;
+            color: #000;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-retry:active { transform: scale(0.96); }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.95);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .loading-overlay.active { display: flex; }
+
+        .spinner {
+            width: 80px;
+            height: 80px;
+            position: relative;
+        }
+
+        .spinner-ring {
+            position: absolute;
+            inset: 0;
+            border: 3px solid transparent;
+            border-top-color: var(--primary-light);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .spinner-ring:nth-child(2) {
+            border-top-color: var(--accent);
+            animation-duration: 1.5s;
+            animation-direction: reverse;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 32px;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: rgba(255,255,255,0.8);
+            animation: fadeInOut 1.5s infinite;
+        }
+
+        /* Animations */
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes zoomIn {
+            from { opacity: 0; transform: scale(1.1); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translate(-50%, 20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        canvas { display: none; }
+        /* Update the controls container */
+.controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100; /* Increased to be above the preview pane */
+    padding: 20px 24px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    background: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+    pointer-events: none; /* Allow clicks to pass through to buttons specifically */
+}
+
+/* Update the actions container */
+.preview-actions {
+    display: none; /* Controlled by the .active class */
+    gap: 12px;
+    width: 100%;
+    max-width: 400px;
+    pointer-events: auto; /* Re-enable clicks for the buttons */
+    z-index: 150;
+}
+
+.preview-actions.active {
+    display: flex !important; /* Force display when active */
+}
+
+/* Ensure the capture zone doesn't block the preview actions */
+.capture-zone {
+    pointer-events: auto;
+    display: flex; /* Keep as flex */
+}
+
+.capture-zone.hidden {
+    display: none; /* We will use this to swap the UI */
+}
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <!-- Permission Error -->
+        <div id="permissionError">
+            <div class="error-icon">📸</div>
+            <h2 class="error-title">Camera Access Required</h2>
+            <p class="error-message">AutoGrade needs camera permission to scan documents and assignments.</p>
+            <button class="btn-retry" onclick="location.reload()">Enable Camera</button>
+        </div>
+
+        <!-- Scanner View -->
+        <div id="scannerView">
+            <div class="header">
+                <div class="brand">AutoGrade</div>
+                <div class="camera-info">
+                    <span class="quality-badge">HD</span>
+                    <span id="resolution">1080p</span>
+                </div>
+            </div>
+
+            <div class="viewport">
+                <video id="video" autoplay playsinline muted></video>
+                
+                <div class="camera-assists">
+                    <div class="grid-overlay" id="gridOverlay"></div>
+                    <div class="level-indicator" id="levelIndicator">
+                        <div class="level-dot"></div>
+                    </div>
+                    <div class="focus-frame active">
+                        <div class="frame-corner"></div>
+                        <div class="frame-corner"></div>
+                        <div class="frame-corner"></div>
+                        <div class="frame-corner"></div>
+                        <div class="scan-line"></div>
+                        <div class="scan-instruction">Align document within frame</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview Pane -->
+            <div id="previewPane">
+                <div class="preview-header">
+                    <div class="preview-title">Review Capture</div>
+                    <div class="preview-time" id="previewTime">12:34 PM</div>
+                </div>
+                <div class="preview-content">
+                    <img id="previewImage" alt="Captured Image">
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="controls">
+                <div class="status-bar">
+                    <div class="status-indicator active">
+                        <div class="status-dot"></div>
+                        <span id="statusText">Ready to Scan</span>
+                    </div>
+                </div>
+
+                <div class="capture-zone" id="captureZone">
+                    <div class="secondary-btn" id="gridBtn" title="Toggle Grid">⊞</div>
+                    <button class="capture-btn" id="captureBtn">
+                        <div class="capture-inner"></div>
+                    </button>
+                    <div class="secondary-btn" id="levelBtn" title="Toggle Level">⊙</div>
+                </div>
+
+                <div class="preview-actions" id="previewActions">
+                    <button class="btn-action btn-retake" id="retakeBtn">Retake</button>
+                    <button class="btn-action btn-confirm" id="confirmBtn">Snap</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner">
+            <div class="spinner-ring"></div>
+            <div class="spinner-ring"></div>
+        </div>
+        <div class="loading-text" id="loadingText">Processing...</div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+       const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID",
+    measurementId: "YOUR_MEASUREMENT_ID"
+};
+
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const els = {
+            video: document.getElementById('video'),
+            canvas: document.getElementById('canvas'),
+            captureBtn: document.getElementById('captureBtn'),
+            captureZone: document.getElementById('captureZone'),
+            retakeBtn: document.getElementById('retakeBtn'),
+            confirmBtn: document.getElementById('confirmBtn'),
+            gridBtn: document.getElementById('gridBtn'),
+            levelBtn: document.getElementById('levelBtn'),
+            previewPane: document.getElementById('previewPane'),
+            previewImage: document.getElementById('previewImage'),
+            previewTime: document.getElementById('previewTime'),
+            previewActions: document.getElementById('previewActions'),
+            gridOverlay: document.getElementById('gridOverlay'),
+            levelIndicator: document.getElementById('levelIndicator'),
+            statusText: document.getElementById('statusText'),
+            loadingOverlay: document.getElementById('loadingOverlay'),
+            loadingText: document.getElementById('loadingText'),
+            permissionError: document.getElementById('permissionError'),
+            scannerView: document.getElementById('scannerView'),
+            resolution: document.getElementById('resolution')
+        };
+
+        const loadingMessages = [
+            "Uploading Image",
+            "Analyzing Content",
+            "Processing Handwriting",
+            "Extracting Data",
+            "Almost There",
+            "Finalizing Results"
+        ];
+
+        let gridEnabled = false;
+        let levelEnabled = false;
+
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    },
+                    audio: false
+                });
+                
+                els.video.srcObject = stream;
+                
+                els.video.onloadedmetadata = () => {
+                    const width = els.video.videoWidth;
+                    const height = els.video.videoHeight;
+                    els.resolution.textContent = `${height}p`;
+                };
+
+                els.permissionError.style.display = 'none';
+                els.scannerView.style.display = 'block';
+            } catch (err) {
+                console.error('Camera error:', err);
+                els.permissionError.style.display = 'flex';
+            }
+        }
+
+        function updateStatus(text, duration = 2500) {
+            els.statusText.textContent = text;
+            setTimeout(() => {
+                if (els.statusText.textContent === text) {
+                    els.statusText.textContent = 'Ready to Scan';
+                }
+            }, duration);
+        }
+
+        function updateTime() {
+            const now = new Date();
+            const hours = now.getHours() % 12 || 12;
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+            els.previewTime.textContent = `${hours}:${minutes} ${ampm}`;
+        }
+
+       function togglePreview(show) {
+    if (show) {
+        updateTime();
+        els.previewPane.classList.add('active');
+        els.captureZone.style.opacity = '0';
+        els.captureZone.style.transform = 'scale(0.8)';
+        els.captureZone.style.pointerEvents = 'none'; // ADD THIS
+        setTimeout(() => {
+            els.previewActions.classList.add('active');
+            els.previewActions.style.pointerEvents = 'auto'; // ADD THIS
+        }, 500);
+    } else {
+        els.previewPane.classList.remove('active');
+        els.previewActions.classList.remove('active');
+        els.previewActions.style.pointerEvents = 'none'; // ADD THIS
+        setTimeout(() => {
+            els.captureZone.style.opacity = '1';
+            els.captureZone.style.transform = 'scale(1)';
+            els.captureZone.style.pointerEvents = 'auto'; // ADD THIS
+        }, 300);
+    }
+}
+
+        els.captureBtn.addEventListener('click', () => {
+            const ctx = els.canvas.getContext('2d');
+            els.canvas.width = els.video.videoWidth;
+            els.canvas.height = els.video.videoHeight;
+            ctx.drawImage(els.video, 0, 0);
+            els.previewImage.src = els.canvas.toDataURL('image/jpeg', 0.92);
+            togglePreview(true);
+            updateStatus('Capture Successful', 1500);
+        });
+
+        els.retakeBtn.addEventListener('click', () => {
+            togglePreview(false);
+            updateStatus('Ready to Scan');
+        });
+
+        els.confirmBtn.addEventListener('click', async () => {
+            els.loadingOverlay.classList.add('active');
+            
+            const msgInterval = setInterval(() => {
+                const msg = loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
+                els.loadingText.textContent = msg;
+            }, 900);
+
+            try {
+                const imageData = els.previewImage.src;
+                const size = Math.round((imageData.length - 'data:image/jpeg;base64,'.length) * 0.75);
+
+                await addDoc(collection(db, 'photos'), {
+                    imageData,
+                    uploadedAt: serverTimestamp(),
+                    size,
+                    type: 'image/jpeg'
+                });
+
+                await new Promise(r => setTimeout(r, 2500));
+
+                clearInterval(msgInterval);
+                els.loadingOverlay.classList.remove('active');
+                togglePreview(false);
+                updateStatus('Upload Complete ✓', 3000);
+            } catch (err) {
+                clearInterval(msgInterval);
+                els.loadingOverlay.classList.remove('active');
+                console.error('Upload error:', err);
+                updateStatus('Upload Failed ✗', 3000);
+            }
+        });
+
+        els.gridBtn.addEventListener('click', () => {
+            gridEnabled = !gridEnabled;
+            els.gridOverlay.classList.toggle('active', gridEnabled);
+            els.gridBtn.style.background = gridEnabled ? 'rgba(124, 58, 237, 0.3)' : '';
+        });
+
+        els.levelBtn.addEventListener('click', () => {
+            levelEnabled = !levelEnabled;
+            els.levelIndicator.classList.toggle('active', levelEnabled);
+            els.levelBtn.style.background = levelEnabled ? 'rgba(124, 58, 237, 0.3)' : '';
+        });
+
+        // Simulated device orientation for level indicator
+        if (window.DeviceOrientationEvent) {
+            window.addEventListener('deviceorientation', (e) => {
+                if (levelEnabled) {
+                    const tilt = Math.abs(e.beta - 90) + Math.abs(e.gamma);
+                    els.levelIndicator.classList.toggle('tilted', tilt > 15);
+                }
+            });
+        }
+
+        window.onload = initCamera;
+    </script>
+</body>
+</html>

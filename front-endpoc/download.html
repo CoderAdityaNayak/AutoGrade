@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoGrade Downloads</title>
+    <!-- Ubuntu Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --dark-bg: #0f0f13;
+            --accent: #007AFF;
+            --transition-speed: 1.2s;
+            --easing: cubic-bezier(0.85, 0, 0.15, 1);
+            --pop-easing: cubic-bezier(0.34, 1.56, 0.64, 1);
+            --border-color: #f0f0f5;
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Ubuntu', sans-serif;
+        }
+
+        body, html {
+            height: 100%;
+            background-color: #fcfcfd;
+            scroll-behavior: smooth;
+        }
+
+        /* Prevent scrolling before wipe */
+        body:not(.reveal) {
+            overflow: hidden;
+        }
+
+        /* --- SECTION 1: CINEMATIC INTRO --- */
+        #intro-shutter {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--dark-bg);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: transform var(--transition-speed) var(--easing);
+            color: white;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .bg-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(circle at center, rgba(0, 122, 255, 0.08) 0%, transparent 70%);
+            z-index: 1;
+            animation: pulseGlow 8s infinite alternate;
+        }
+
+        .sketch-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .sketch {
+            position: absolute;
+            stroke: rgba(255, 255, 255, 0.1);
+            stroke-width: 1;
+            fill: none;
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: drawSketch 3s forwards ease-in-out;
+        }
+
+        .sketch-1 { top: 10%; left: 5%; width: 300px; transform: rotate(-10deg); animation-delay: 0.2s; }
+        .sketch-2 { bottom: 10%; right: 5%; width: 350px; transform: rotate(15deg); animation-delay: 0.5s; }
+
+        .hero-text {
+            position: relative;
+            z-index: 10;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: fadeInText 1s forwards ease-out 0.8s;
+        }
+
+        .hero-text h1 {
+            font-size: clamp(3rem, 10vw, 5.5rem);
+            font-weight: 700;
+            letter-spacing: -3px;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to bottom, #fff, #888);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-text p {
+            font-size: 1.4rem;
+            font-weight: 300;
+            color: rgba(255, 255, 255, 0.5);
+            letter-spacing: 1px;
+        }
+
+        .scroll-hint {
+            position: absolute;
+            bottom: 40px;
+            z-index: 10;
+            cursor: pointer;
+            opacity: 0;
+            animation: fadeInText 1s forwards ease-out 1.5s, bounce 2s infinite;
+        }
+
+        /* --- SECTION 2: CONTENT LAYOUT --- */
+        #main-content {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 0;
+            transform: translateY(40px);
+            transition: opacity 1s ease, transform 1s var(--easing);
+        }
+
+        .reveal #main-content {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .download-container {
+            max-width: 520px;
+            width: 100%;
+            text-align: center;
+            margin: 5rem 0 8rem;
+            padding: 0 2rem;
+        }
+
+        .github-card {
+            background: #fff;
+            border: 1px solid #eef0f2;
+            border-radius: 32px;
+            padding: 3rem 2.5rem;
+            box-shadow: 0 40px 80px rgba(0,0,0,0.04);
+            position: relative;
+        }
+
+        .icon-box {
+            width: 64px;
+            height: 64px;
+            background: var(--dark-bg);
+            border-radius: 20px;
+            display: flex;
+            margin: 0 auto 1.5rem;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .version-tag {
+            display: inline-block;
+            background: #f0f4ff;
+            color: var(--accent);
+            padding: 4px 14px;
+            border-radius: 100px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        h2 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #121217;
+            margin-bottom: 0.75rem;
+        }
+
+        .description {
+            color: #6a6a75;
+            font-size: 1rem;
+            line-height: 1.6;
+            margin-bottom: 2rem;
+        }
+
+        .terms-wrapper {
+            background: #f8f9fb;
+            border-radius: 16px;
+            padding: 1.2rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .terms-wrapper:hover {
+            border-color: #e2e4e9;
+            background: #f0f1f5;
+        }
+
+        .terms-wrapper input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            margin-top: 2px;
+            accent-color: var(--dark-bg);
+            cursor: pointer;
+        }
+
+        .terms-text {
+            font-size: 0.9rem;
+            color: #4a4a55;
+            line-height: 1.4;
+            user-select: none;
+        }
+
+        .download-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            background: var(--dark-bg);
+            color: white;
+            text-decoration: none;
+            padding: 1.25rem;
+            border-radius: 16px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            width: 100%;
+            border: none;
+            cursor: pointer;
+        }
+
+        .download-btn.disabled {
+            background: #e2e4e9;
+            color: #9ea3ae;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .download-btn:not(.disabled):hover {
+            transform: translateY(-4px);
+            box-shadow: 0 15px 30px rgba(15, 15, 19, 0.15);
+            background: #1a1a24;
+        }
+
+        .secondary-btn {
+            flex: 1;
+            padding: 0.8rem;
+            border-radius: 12px;
+            border: 1px solid #e2e4e9;
+            background: #fff;
+            color: #4a4a55;
+            font-weight: 500;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        /* --- SECTION 3: DARK HISTORY LOGS --- */
+        .history-wrapper {
+            width: 100%;
+            background-color: var(--dark-bg);
+            display: flex;
+            justify-content: center;
+            padding: 8rem 2rem;
+            position: relative;
+        }
+
+        .history-section {
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .section-header {
+            text-align: left;
+            margin-bottom: 4rem;
+            border-left: 4px solid var(--accent);
+            padding-left: 1.5rem;
+            opacity: 0;
+            transform: translateX(-20px);
+            transition: all 0.8s var(--easing);
+        }
+
+        .section-header.active {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .section-header h3 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 0.5rem;
+        }
+
+        .section-header p {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 1.1rem;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 2px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .history-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 2.5rem;
+            margin-bottom: 2.5rem;
+            position: relative;
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            opacity: 0;
+            transform: translateY(40px);
+            backdrop-filter: blur(10px);
+        }
+
+        .history-card.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .history-card:hover {
+            transform: translateX(10px) translateY(-5px);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .history-card::before {
+            content: '';
+            position: absolute;
+            left: -33px;
+            top: 3.2rem;
+            width: 12px;
+            height: 12px;
+            background: var(--accent);
+            border-radius: 50%;
+            border: 4px solid var(--dark-bg);
+            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.3);
+        }
+
+        .history-card .date {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.75rem;
+            display: block;
+        }
+
+        .history-card h4 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: white;
+        }
+
+        .history-card p {
+            font-size: 1.05rem;
+            color: rgba(255, 255, 255, 0.6);
+            line-height: 1.7;
+        }
+
+        .dev-tag {
+            display: inline-block;
+            margin-top: 1.5rem;
+            padding: 6px 14px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* --- MODAL SYSTEM --- */
+        #modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 15, 19, 0.4);
+            backdrop-filter: blur(8px);
+            z-index: 200;
+            display: flex; 
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.4s var(--easing), visibility 0.4s var(--easing);
+        }
+
+        #modal-overlay.active { opacity: 1; visibility: visible; }
+
+        .modal-card {
+            background: #fff;
+            width: 100%;
+            max-width: 600px;
+            border-radius: 24px;
+            padding: 2.5rem;
+            box-shadow: 0 50px 100px rgba(0,0,0,0.2);
+            transform-origin: bottom center;
+            transform: scale(0.4) translateY(100px);
+            opacity: 0;
+            transition: transform 0.5s var(--pop-easing), opacity 0.3s var(--easing);
+        }
+
+        #modal-overlay.active .modal-card { transform: scale(1) translateY(0); opacity: 1; }
+
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .modal-close { cursor: pointer; color: #9ea3ae; }
+
+        .comparison-table { width: 100%; border-collapse: separate; border-spacing: 0 10px; }
+        .comparison-table th { text-align: left; padding: 0.5rem 1rem; font-size: 0.8rem; color: #9ea3ae; text-transform: uppercase; }
+        .comparison-table td { padding: 1rem; font-size: 0.95rem; border-radius: 8px; }
+        .pos-item { background: #f0fdf4; color: #166534; border-left: 4px solid var(--success); }
+        .neg-item { background: #fef2f2; color: #991b1b; border-left: 4px solid var(--danger); }
+
+        /* --- KEYFRAMES --- */
+        @keyframes drawSketch { to { stroke-dashoffset: 0; opacity: 1; } }
+        @keyframes fadeInText { to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulseGlow {
+            from { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+            to { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(2deg); }
+        }
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        .reveal #intro-shutter { transform: translateY(-100%); }
+        body.wipe-cursor { cursor: ns-resize; }
+ 
+
+
+
+  .container {
+    --uib-size: 100px;
+    --uib-color: rgb(18, 226, 21);
+    --uib-speed: 1.5s;
+    --dot-size: calc(var(--uib-size) * 0.17);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    height: var(--uib-size);
+    width: var(--uib-size);
+    animation: smoothRotate calc(var(--uib-speed) * 1.8) linear infinite;
+  }
+
+  .dot {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+    animation: rotate var(--uib-speed) ease-in-out infinite;
+  }
+
+  .dot::before {
+    content: '';
+    height: var(--dot-size);
+    width: var(--dot-size);
+    border-radius: 50%;
+    background-color: var(--uib-color);
+    transition: background-color 0.3s ease;
+  }
+
+  .dot:nth-child(2),
+  .dot:nth-child(2)::before {
+    animation-delay: calc(var(--uib-speed) * -0.835 * 0.5);
+  }
+
+  .dot:nth-child(3),
+  .dot:nth-child(3)::before {
+    animation-delay: calc(var(--uib-speed) * -0.668 * 0.5);
+  }
+
+  .dot:nth-child(4),
+  .dot:nth-child(4)::before {
+    animation-delay: calc(var(--uib-speed) * -0.501 * 0.5);
+  }
+
+  .dot:nth-child(5),
+  .dot:nth-child(5)::before {
+    animation-delay: calc(var(--uib-speed) * -0.334 * 0.5);
+  }
+
+  .dot:nth-child(6),
+  .dot:nth-child(6)::before {
+    animation-delay: calc(var(--uib-speed) * -0.167 * 0.5);
+  }
+
+  @keyframes rotate {
+    0% {
+      transform: rotate(0deg);
+    }
+    65%,
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes smoothRotate {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+
+
+    </style>
+</head>
+<body class="wipe-cursor">
+
+    <!-- Section 1: Intro -->
+    <div id="intro-shutter" onclick="executeWipe()">
+        <div class="bg-glow"></div>
+        <div class="sketch-container">
+            <svg class="sketch sketch-1" viewBox="0 0 200 200">
+                <path d="M20,100 L180,100 M100,20 L100,180 M60,60 L140,140 M140,60 L60,140" stroke-opacity="0.5"/>
+                <circle cx="100" cy="100" r="40" />
+                <circle cx="100" cy="100" r="70" stroke-dasharray="5,5" />
+            </svg>
+            <svg class="sketch sketch-2" viewBox="0 0 200 200">
+                <rect x="10" y="10" width="180" height="120" rx="10" />
+                <path d="M10,50 L190,50 M10,90 L190,90" />
+                <circle cx="160" cy="30" r="10" />
+            </svg>
+        </div>
+        <div class="hero-text">
+            <h1>AutoGrade</h1>
+            <p>Thank you for choosing us.</p>
+        </div>
+        <div class="scroll-hint">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5">
+                <path d="M7 13l5 5 5-5M7 6l5 5 5-5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </div>
+    </div>
+ <br><hr><br>
+    <!-- Main Content Flow -->
+    <main id="main-content">
+        
+        <!-- Section: Download -->
+       <div class="download-container" style="display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap; max-width: 1000px; margin: 0 auto;">
+    <br><br>
+    <!-- AutoGrade v1.2 -->
+    <div class="github-card" style="flex: 1 1 300px; padding: 2rem; border-radius: 12px; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.05); text-align: center;">
+       
+        <span class="version-tag">Latest Stable Release</span>
+        <h2>AutoGrade v.1.2</h2>
+        <p class="description">Securely download the latest production release of AutoGrade for your desktop environment.</p>
+        
+        <label class="terms-wrapper">
+            <input type="checkbox" id="termsCheck" onchange="updateBtnState()">
+            <span class="terms-text">
+                I have read and agree to the <a href="termsconditions.html" onclick="event.stopPropagation()">Terms of Service</a> and the <a href="termsconditions.html" onclick="event.stopPropagation()">Privacy Policy</a>.
+            </span>
+        </label>
+        <br>
+        <button id="dlBtn" class="download-btn disabled" onclick="handleDownload()" disabled>
+            <span>Download for Windows</span>
+            <!-- SVG arrow here -->
+        </button>
+
+        <div class="action-row">
+            <a href="/" class="secondary-btn">Go Home</a>
+            <button class="secondary-btn" onclick="openModal()">DevNote</button>
+        </div>
+    </div>
+
+    <!-- AutoGrade v1.0 -->
+    <div class="github-card" style="flex: 1 1 300px; padding: 2rem; border-radius: 12px; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.05); text-align: center;">
+       
+        <span class="version-tag">v.1.1 Release</span>
+        <h2> AutoGrade v.1.1</h2>
+        <p class="description">Securely download the latest production release of AutoGrade for your desktop environment.</p>
+<br> <br> <br> <p style="text-transform: uppercase; color: red; font-family: Ubuntu;">Removed</p> <br> <br> <br>
+        <div class="action-row">
+            <a href="/" class="secondary-btn">Go Home</a>
+           
+        </div>
+    </div>
+
+</div>
+<div id="loader" class="container" style="display:none; margin-top: 2rem; color: var(--dark-bg);">
+  <div class="dot"></div>
+  <div class="dot"></div>
+  <div class="dot"></div>
+  <div class="dot"></div>
+  <div class="dot"></div>
+  <div class="dot"></div>
+  
+</div>
+
+       
+
+    <!-- DevNote Modal -->
+    <div id="modal-overlay" onclick="closeModal()">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>Developer's Note</h2>
+                <div class="modal-close" onclick="closeModal()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </div>
+            </div>
+            <p style="color: #6a6a75; margin-bottom: 1.5rem; line-height: 1.6;">v1.2 focus: stability and scaling.</p>
+            <table class="comparison-table">
+                <thead>
+                    <tr><th>Pros</th><th>Cons</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td class="pos-item">✨ 70 images daily</td><td class="neg-item">Rare placeholder misfires</td></tr>
+                    <tr><td class="pos-item">🖥️ Refined GUI</td><td class="neg-item">Needs more polish</td></tr>
+                    <tr><td class="pos-item">💾 Light ~130 MB</td><td class="neg-item">Needs stable internet</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let wiped = false;
+
+        function executeWipe() {
+            if (wiped) return;
+            wiped = true;
+            document.body.classList.add('reveal');
+            document.body.classList.remove('wipe-cursor');
+            
+            // Re-init observer once content exists
+            initRevealObserver();
+        }
+
+        function initRevealObserver() {
+            const observerOptions = {
+                threshold: 0.15,
+                rootMargin: '0px 0px -50px 0px'
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('active');
+                    }
+                });
+            }, observerOptions);
+
+            document.querySelectorAll('.reveal-element').forEach(el => {
+                observer.observe(el);
+            });
+        }
+
+        function openModal() { document.getElementById('modal-overlay').classList.add('active'); }
+        function closeModal() { document.getElementById('modal-overlay').classList.remove('active'); }
+
+       function updateBtnState() {
+    const cb = document.getElementById('termsCheck');
+    const btn = document.getElementById('dlBtn');
+    if (cb.checked) {
+        btn.classList.remove('disabled');
+        btn.removeAttribute('disabled'); // <-- add this
+    } else {
+        btn.classList.add('disabled');
+        btn.setAttribute('disabled', ''); // <-- keep this in sync
+    }
+}
+
+
+        function handleDownload() {
+    const loader = document.getElementById('loader');
+    loader.style.display = 'flex'; // show spinner
+
+    setTimeout(() => {
+        loader.style.display = 'none'; // hide spinner
+
+        // Programmatically trigger download
+        const a = document.createElement('a');
+        a.href = "https://github.com/CoderAdityaNayak/AutoGrade/releases/latest/download/AutoGradev1.2.exe";
+        a.download = "AutoGradev1.2.exe"; // suggest filename
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }, 2000);
+}
+
+
+        window.addEventListener('wheel', (e) => { if (e.deltaY > 20) executeWipe(); });
+        let tY = 0;
+        window.addEventListener('touchstart', (e) => { tY = e.touches[0].clientY; });
+        window.addEventListener('touchmove', (e) => { if (tY - e.touches[0].clientY > 50) executeWipe(); });
+        window.onbeforeunload = function() { window.scrollTo(0, 0); };
+    </script>
+<!-- 
+  AutoGrade v3 Teaser Snippet
+  Clean, Minimalist Version: White background, Black Ubuntu typography, and swipe effects.
+  Dependencies: 
+  - Tailwind CSS (https://cdn.tailwindcss.com)
+  - Google Font 'Ubuntu'
+-->
+<br><br>
+<div id="autograde-teaser-root" class="relative flex items-center justify-center min-h-screen bg-[#f8fafc] overflow-hidden">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;700&display=swap');
+
+        #autograde-teaser-root {
+            --swipe-color: #000000;
+            --container-bg: #ffffff;
+            font-family: 'Ubuntu', sans-serif;
+        }
+
+        #autograde-teaser-root .container-box {
+            position: relative;
+            background: var(--container-bg);
+            border-radius: 1rem;
+            padding: 5rem 8rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 600px;
+            z-index: 10;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        #autograde-teaser-root .text-wrapper {
+            position: relative;
+            display: inline-block;
+            overflow: hidden;
+            padding: 0.5rem 1rem;
+        }
+
+        #autograde-teaser-root .teaser-h1 {
+            font-size: 4.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            white-space: nowrap;
+            text-transform: uppercase;
+            color: #000000;
+            line-height: 1;
+        }
+
+        #autograde-teaser-root .wipe-overlay {
+            position: absolute;
+            top: 0;
+            left: -110%;
+            width: 110%;
+            height: 100%;
+            background: var(--swipe-color);
+            z-index: 10;
+        }
+
+        @keyframes performWipe {
+            0% { left: -110%; }
+            40% { left: 0%; }
+            60% { left: 0%; }
+            100% { left: 110%; }
+        }
+
+        #autograde-teaser-root .animate-wipe {
+            animation: performWipe 0.8s cubic-bezier(0.7, 0, 0.3, 1) forwards;
+        }
+
+        #autograde-teaser-root .v3-label {
+            position: absolute;
+            top: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.75rem;
+            letter-spacing: 0.4em;
+            color: #64748b;
+            font-weight: 700;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+    </style>
+
+    <div class="relative scale-90 md:scale-100">
+        <div class="container-box" id="main-teaser-container">
+            <div class="v3-label">Latest Release V.1.3</div>
+            <div class="text-wrapper">
+                <div id="wipe-bar" class="wipe-overlay"></div>
+                <h1 id="teaser-text" class="teaser-h1">STAY TUNED</h1>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            const textElement = document.getElementById('teaser-text');
+            const wipeBar = document.getElementById('wipe-bar');
+            
+            const phrases = ["STAY TUNED", "AUTOGRADE V.1.3", "COMING SOON"];
+            let currentIndex = 0;
+
+            function triggerSequence() {
+                // Reset and trigger animation
+                wipeBar.classList.remove('animate-wipe');
+                void wipeBar.offsetWidth; 
+                wipeBar.classList.add('animate-wipe');
+
+                // Change text exactly when the wipe bar covers it
+                setTimeout(() => {
+                    currentIndex = (currentIndex + 1) % phrases.length;
+                    textElement.innerText = phrases[currentIndex];
+                }, 400);
+
+                // Repeat sequence
+                setTimeout(triggerSequence, 3000);
+            }
+
+            // Start loop
+            setTimeout(triggerSequence, 1000);
+        })();
+    </script>
+</div>
+
+</body>
+</html>

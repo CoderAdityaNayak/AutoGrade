@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoGrade | Scan. Detect. Auto-Fill.</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #62109F;
+            --secondary: #DC0E0E;
+            --accent: #FE6244;
+            --highlight: #FFDEB9;
+            --dark-bg: #0f0f13;
+            --ghost-color: #B19EEF;
+            /* Unified Mouse Variables */
+            --mouse-x: 50%;
+            --mouse-y: 50%;
+            --mouse-px-x: 0px;
+            --mouse-px-y: 0px;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Ubuntu','Inter', sans-serif;
+            background-color: var(--dark-bg);
+            color: white;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        /* Add scroll margin so sections don't hit the very top */
+        section {
+            scroll-margin-top: 80px;
+        }
+
+        /* --- Global Layers --- */
+        .interactive-bg {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            background: radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(98, 16, 159, 0.15), rgba(254, 98, 68, 0.05) 30%, transparent 70%);
+        }
+
+        .grain-overlay {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        }
+
+        #ghost-canvas {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* --- Utility Classes --- */
+        .gradient-text {
+            background: linear-gradient(135deg, var(--highlight) 0%, var(--accent) 50%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .glass-ui {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1.5rem;
+        }
+
+        /* --- Carousel Component --- */
+        .em-component-root {
+            position: relative;
+            width: 100%;
+            min-height: 80vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            perspective: 1200px;
+            padding: 100px 0;
+        }
+
+        .em-content-overlay {
+            position: relative;
+            z-index: 20;
+            text-align: center;
+            max-width: 900px;
+            padding: 40px;
+        }
+
+        .em-bg-canvas-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 5;
+            transform: rotateX(25deg) translateY(50px);
+            transform-origin: bottom;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        .em-feature-main-text {
+            font-size: clamp(2.5rem, 8vw, 4.5rem);
+            font-weight: 800;
+            line-height: 1.1;
+            background: linear-gradient(to bottom, #fff 40%, rgba(255,255,255,0.5));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* --- Step Cards Parallax --- */
+        .step-card {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: transform 0.1s ease-out, border-color 0.3s ease, background 0.3s ease;
+            transform-style: preserve-3d;
+        }
+        
+        .step-card:hover {
+            border-color: rgba(98, 16, 159, 0.3);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* --- 3D Glass Button --- */
+        .glass-btn {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 4px solid rgba(0, 0, 0, 0.4);
+            border-radius: 1.25rem;
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            cursor: pointer;
+            width: 72px;
+            height: 72px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .glass-btn.expanded {
+            width: 320px;
+            background: rgba(98, 16, 159, 0.15);
+            border: 1px solid rgba(177, 158, 239, 0.3);
+        }
+
+        /* Animations */
+        .floating-card { animation: float 6s ease-in-out infinite; }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+          #dev-modal {
+            visibility: hidden;
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+        }
+
+        #dev-modal.active {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .modal-content {
+            background: rgba(15, 15, 19, 0.8);
+            backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 60px rgba(0, 0, 0, 0.5);
+            transform: scale(0.9);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #dev-modal.active .modal-content {
+            transform: scale(1);
+        }
+
+        .minimal-glow {
+            position: absolute;
+            top: var(--mouse-y);
+            left: var(--mouse-x);
+            transform: translate(-50%, -50%);
+            width: 80vw;
+            height: 80vw;
+            max-width: 600px;
+            max-height: 600px;
+            background: radial-gradient(circle, rgba(177, 158, 239, 0.08) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: -1;
+            transition: top 0.2s ease-out, left 0.2s ease-out;
+            filter: blur(60px);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="grain-overlay"></div>
+    <div class="interactive-bg" id="mouse-glow"></div>
+    <canvas id="ghost-canvas"></canvas>
+
+    <!-- Navigation -->
+    <nav class="container mx-auto px-6 py-8 flex items-center justify-between relative z-[60]">
+        <a href="#" class="flex items-center space-x-2">
+            <div class="w-8 h-8 bg-[#FE6244] rounded-lg flex items-center justify-center font-bold text-white shadow-[0_0_20px_rgba(254,98,68,0.4)]">A</div>
+            <span class="text-xl font-bold tracking-tight">AutoGrade</span>
+        </a>
+        <div class="hidden md:flex space-x-8 items-center font-medium">
+            <a href="#how-to-use" class="hover:text-[#FE6244] transition-colors">How it Works</a>
+            <a href="#carousel" class="hover:text-[#FE6244] transition-colors">Features</a>
+<a href="download.html"  class="bg-[#62109F] px-6 py-2 rounded-full font-bold shadow-lg hover:bg-[#7a1ec7] transition-all">Download</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <main class="container mx-auto px-6 pt-12 pb-24 lg:flex items-center gap-12 relative z-10">
+        <div class="lg:w-1/2 text-center lg:text-left">
+            <h1 class="text-5xl lg:text-7xl font-bold leading-tight mb-6">
+                From photo to portal <br> 
+                <span class="gradient-text">in seconds</span>
+            </h1>
+            <p class="text-gray-400 text-xl mb-10 max-w-lg mx-auto lg:mx-0">
+                Snap the sheet. AutoGrade fills the portal
+            </p>
+            <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 justify-center lg:justify-start">
+<a href="#download"
+   class="bg-[#62109F] px-8 py-4 rounded-xl text-lg font-bold hover:scale-105 transition-transform inline-flex items-center gap-3 text-center">
+   
+   <img src="https://upload.wikimedia.org/wikipedia/commons/5/5f/Windows_logo_-_2012.svg"
+        class="w-6 h-6" />
+
+   Download Software
+</a>
+
+                              <a href="tc.html" class="bg-[#5459AC] px-8 py-4 rounded-xl text-lg font-bold hover:scale-105 transition-transform inline-block text-center">Web Snap</a>
+                <a href="#carousel" class="px-8 py-4 rounded-xl text-lg font-bold border border-white/10 hover:bg-white/5 transition-colors inline-block text-center">View Features</a>
+            </div>
+        </div>
+
+        <div class="lg:w-1/2 mt-20 lg:mt-0 flex justify-center">
+            <div class="glass-ui p-6 shadow-2xl relative floating-card max-w-md w-full">
+                <div class="flex space-x-2 mb-8">
+                    <div class="w-3 h-3 rounded-full bg-red-500/50"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-500/50"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-500/50"></div>
+                </div>
+                <div class="space-y-4">
+                    <div class="p-4 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-10 h-10 bg-[#DC0E0E]/20 rounded-lg flex items-center justify-center">🎯</div>
+                            <div><div class="font-bold text-sm">Auto-Fill Portal</div><div class="text-xs text-gray-500">Python Automation</div></div>
+                        </div>
+                        <div class="px-2 py-1 rounded bg-[#FE6244]/20 text-[#FE6244] text-[10px] font-bold">Speed</div>
+                    </div>
+                    <div class="p-4 rounded-xl bg-white/5 border border-[#FE6244]/50 flex items-center justify-between scale-105 bg-white/10 shadow-xl">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-10 h-10 bg-[#62109F]/20 rounded-lg flex items-center justify-center">⚡</div>
+                            <div><div class="font-bold text-sm">Instant OCR</div><div class="text-xs text-gray-500">Handwritten Marks</div></div>
+                        </div>
+                        <div class="px-2 py-1 rounded bg-[#62109F]/20 text-[#B19EEF] text-[10px] font-bold">Smart</div>
+                    </div>
+                     <div class="p-4 rounded-xl bg-white/5 border border-[#9F7AEA]/50 flex items-center justify-between scale-105 bg-white/10 shadow-xl">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-10 h-10 bg-[#9F7AEA]/20 rounded-lg flex items-center justify-center">🛡️</div>
+                            <div><div class="font-bold text-sm">Private.</div><div class="text-xs text-gray-500">Secure & Private</div></div>
+                        </div>
+                        <div class="px-2 py-1 rounded bg-[#9F7AEA]/20 text-[#A78BFA] text-[10px] font-bold">Reliable</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- How it Works Section -->
+    <section id="how-to-use" class="py-24 relative z-10">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-20">
+                <h2 class="text-4xl md:text-5xl font-bold mb-4">How it works</h2>
+                <div class="w-24 h-1 bg-gradient-to-r from-purple-600 to-orange-500 mx-auto"></div>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Step 1 -->
+                <div class="perspective-1000">
+                    <div class="step-card p-8 rounded-3xl h-full relative overflow-hidden group">
+                        <div class="text-7xl font-black absolute -top-4 -right-2 opacity-10 select-none">01</div>
+                        <div class="w-14 h-14 bg-[#62109F]/20 rounded-2xl flex items-center justify-center text-2xl mb-6">💻</div>
+                        <h3 class="text-xl font-bold mb-4 text-[#FFDEB9]">Setup Software</h3>
+                        <p class="text-gray-400 leading-relaxed">
+                            Keep AutoGrade open on your laptop to receive marks automatically.  </p>
+                        <div class="mt-8 h-1 w-0 bg-[#62109F] transition-all duration-500 group-hover:w-full"></div>
+                    </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="perspective-1000">
+                    <div class="step-card p-8 rounded-3xl h-full relative overflow-hidden group">
+                        <div class="text-7xl font-black absolute -top-4 -right-2 opacity-10 select-none">02</div>
+                        <div class="w-14 h-14 bg-[#FE6244]/20 rounded-2xl flex items-center justify-center text-2xl mb-6">📸</div>
+                        <h3 class="text-xl font-bold mb-4 text-[#FFDEB9]">Scan & Upload</h3>
+                        <p class="text-gray-400 leading-relaxed">
+                          Open AutoGrade Web Snap on your phone and upload a photo of the marks sheet.  </p>
+                        <div class="mt-8 h-1 w-0 bg-[#FE6244] transition-all duration-500 group-hover:w-full"></div>
+                    </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="perspective-1000">
+                    <div class="step-card p-8 rounded-3xl h-full relative overflow-hidden group">
+                        <div class="text-7xl font-black absolute -top-4 -right-2 opacity-10 select-none">03</div>
+                        <div class="w-14 h-14 bg-[#DC0E0E]/20 rounded-2xl flex items-center justify-center text-2xl mb-6">⚖️</div>
+                        <h3 class="text-xl font-bold mb-4 text-[#FFDEB9]">Instant Sync</h3>
+                        <p class="text-gray-400 leading-relaxed">
+                            Marks are filled for you. Simply review and submit.
+                        </p>
+                        <div class="mt-8 h-1 w-0 bg-[#DC0E0E] transition-all duration-500 group-hover:w-full"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Carousel Section (Scrolled Content) -->
+    <section id="carousel" class="em-component-root">
+        <canvas id="em-bg-canvas" class="em-bg-canvas-layer"></canvas>
+        <div id="em-content-box" class="em-content-overlay">
+            <h3 id="em-feat-title" class="text-[#8C00FF] uppercase tracking-[0.6em] text-xs font-bold mb-4 opacity-0 transition-all duration-700 translate-y-4">Real-Time Precision</h3>
+            <h1 id="em-feat-main" class="em-feature-main-text opacity-0 transition-all duration-700 translate-y-4">Intelligent Mark Recognition</h1>
+            <p id="em-feat-desc" class="text-gray-500 max-w-md mx-auto mt-6 opacity-0 transition-all duration-700 translate-y-4">AI-powered OCR that reads marks and fills your portal automatically.</p>
+        </div>
+    </section>
+<div id="dev-modal" class="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/70">
+        <div class="modal-content p-10 rounded-[2.5rem] max-w-md w-full text-center relative">
+            <div class="w-16 h-16 bg-[#62109F]/20 border border-[#62109F]/40 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-[#B19EEF]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+            <h3 class="text-2xl font-bold mb-3">Under Development</h3>
+            <p class="text-[#FFDEB9]/60 mb-8 leading-relaxed">We're still polishing the EasyMarks experience. Join the waitlist to get notified when the beta drops!</p>
+            <button onclick="toggleModal(false)" class="w-full py-4 bg-[#62109F] hover:bg-[#7a14c7] text-[#FFDEB9] font-bold rounded-2xl transition-all shadow-lg">
+                Close
+            </button>
+        </div>
+    </div>
+    <!-- CTA Section -->
+    <section id="download" class="py-32 flex flex-col items-center justify-center relative z-10">
+        <h2 class="text-4xl lg:text-6xl font-black mb-12 tracking-tighter text-center px-4">
+           Your portal,<br><span class="opacity-30 font-medium italic">done in seconds.</span>
+
+        </h2>
+        <div id="cta-btn" class="glass-btn" onclick="handleCTAClick()">
+    <div class="flex items-center gap-4 px-6 overflow-hidden">
+        <svg class="w-8 h-8 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+        </svg>
+        
+        <span id="cta-text" class="hidden whitespace-nowrap font-black uppercase tracking-widest">
+            Download AutoGrade 
+        </span>
+    </div>
+</div>
+    </section>
+<div id="loader" class="container" style="display:none; margin-top: 2rem; color: var(--dark-bg);">
+  <div class="dot"></div>
+  <div class="dot"></div>
+  <div class="dot"></div>
+  <div class="dot"></div>
+  <div class="dot"></div>
+  <div class="dot"></div>
+  
+</div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const root = document.documentElement;
+            const ghostCanvas = document.getElementById('ghost-canvas');
+            const gCtx = ghostCanvas.getContext('2d');
+            const stepCards = document.querySelectorAll('.step-card');
+            
+            // --- Unified Mouse Tracking ---
+            let mouse = { x: -100, y: -100 };
+            window.addEventListener('mousemove', (e) => {
+                mouse.x = e.clientX;
+                mouse.y = e.clientY;
+                
+                // Set CSS variables
+                root.style.setProperty('--mouse-x', (e.clientX / window.innerWidth * 100) + '%');
+                root.style.setProperty('--mouse-y', (e.clientY / window.innerHeight * 100) + '%');
+                root.style.setProperty('--mouse-px-x', e.clientX + 'px');
+                root.style.setProperty('--mouse-px-y', e.clientY + 'px');
+
+                // Step Cards Parallax Logic
+                if (window.innerWidth > 1024) {
+                    stepCards.forEach(card => {
+                        const rect = card.getBoundingClientRect();
+                        const centerX = rect.left + rect.width / 2;
+                        const centerY = rect.top + rect.height / 2;
+                        const angleX = (centerY - e.clientY) / 30;
+                        const angleY = (e.clientX - centerX) / 30;
+                        card.style.transform = `rotateX(${angleX}deg) rotateY(${angleY}deg)`;
+                    });
+                }
+            });
+
+            // Reset parallax on mouse leave
+            document.addEventListener('mouseleave', () => {
+                stepCards.forEach(card => card.style.transform = `rotateX(0deg) rotateY(0deg)`);
+            });
+
+            // --- Ghost Cursor Logic ---
+            let points = [];
+            function animateGhost() {
+                ghostCanvas.width = window.innerWidth;
+                ghostCanvas.height = window.innerHeight;
+                gCtx.clearRect(0, 0, ghostCanvas.width, ghostCanvas.height);
+
+                points.unshift({ x: mouse.x, y: mouse.y });
+                if (points.length > 40) points.pop();
+
+                points.forEach((p, i) => {
+                    const ratio = (40 - i) / 40;
+                    gCtx.globalAlpha = 0.4 * ratio;
+                    gCtx.beginPath();
+                    gCtx.arc(p.x, p.y, 10 * ratio, 0, Math.PI * 2);
+                    gCtx.fillStyle = '#B19EEF';
+                    gCtx.fill();
+                });
+                requestAnimationFrame(animateGhost);
+            }
+            animateGhost();
+
+            // --- Carousel Waves Logic ---
+            const cCanvas = document.getElementById('em-bg-canvas');
+            const cCtx = cCanvas.getContext('2d');
+            const features = [
+             { title: "Precision OCR", main: "High Accuracy", color: "#8C00FF" },
+{ title: "Instant Results", main: "Under 7 Seconds", color: "#3F7FFF" },
+{ title: "High Capacity", main: "70 Uploads Daily", color: "#C400FF" },
+{ title: "Time Saving", main: "Instant Updates", color: "#C400FF" }
+   ];
+            let featIdx = 0;
+
+            function updateCarousel() {
+                const box = document.getElementById('em-content-box');
+                const children = box.children;
+                // Fade out
+                Array.from(children).forEach(c => { c.style.opacity = '0'; c.style.transform = 'translateY(10px)'; });
+                
+                setTimeout(() => {
+                    featIdx = (featIdx + 1) % features.length;
+                    document.getElementById('em-feat-title').innerText = features[featIdx].title;
+                    document.getElementById('em-feat-main').innerText = features[featIdx].main;
+                    // Fade in
+                    Array.from(children).forEach((c, i) => { 
+                        setTimeout(() => {
+                            c.style.opacity = '1'; 
+                            c.style.transform = 'translateY(0)';
+                        }, i * 100);
+                    });
+                }, 800);
+            }
+            setInterval(updateCarousel, 2000);
+            // Initial trigger
+            setTimeout(() => {
+                Array.from(document.getElementById('em-content-box').children).forEach(c => { c.style.opacity = '1'; c.style.transform = 'translateY(0)'; });
+            }, 500);
+
+            // --- Button Expansion ---
+           window.handleCTAClick = function() {
+    const btn = document.getElementById('cta-btn');
+    const txt = document.getElementById('cta-text');
+    const note = document.getElementById('cta-note');
+    
+    // Step 1: If it's not expanded, expand it
+    if(!btn.classList.contains('expanded')) {
+        btn.classList.add('expanded');
+        txt.classList.remove('hidden');
+        
+        // Small timeout to allow the 'hidden' removal to register for the opacity transition
+        setTimeout(() => { 
+            txt.style.opacity = '1'; 
+            note.style.opacity = '0.3'; 
+        }, 50);
+    } 
+    // Step 2: If it IS already expanded, open the modal
+    else {
+        toggleModal(true);
+    }
+};
+        });
+    </script>
+   <script>
+    // Define the modal variable globally so toggleModal can see it
+    const modal = document.getElementById('dev-modal');
+
+// Function to toggle modal
+function toggleModal(show) {
+const loader = document.getElementById('loader');
+    loader.style.display = 'flex'; // show spinner
+    // Optional: redirect after showing modal
+    setTimeout(() => {
+        window.location.href = 'download.html';
+    }, 300); // wait 1.5s before redirect
+};
+
+
+</script>
+
+<!-- 
+  Aditya Nayak Developer Footer Snippet 
+  Embed this section into your existing site. 
+  Ensure Tailwind CSS is loaded in your project for utility classes.
+-->
+<section class="aditya-dev-snippet w-full py-12 px-6 flex flex-col items-center justify-center bg-transparent">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+        .aditya-dev-snippet {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        /* --- GLOW EFFECT --- */
+        .glow-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            perspective: 1000px;
+        }
+
+        .glow-wrapper::before {
+            content: '';
+            position: absolute;
+            width: 250px;
+            height: 250px;
+            background: rgba(125, 190, 255, 0.3);
+            filter: blur(80px);
+            border-radius: 50%;
+            z-index: 0;
+            pointer-events: none;
+            transition: all 0.5s ease;
+        }
+
+        /* --- INTERACTIVE CONTAINER --- */
+        .interactive-container {
+            position: relative;
+            z-index: 1;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            cursor: pointer;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform-style: preserve-3d;
+        }
+
+        /* Initial Button State - Fixed Centering */
+        .interactive-container.collapsed {
+            width: 120px;
+            height: 54px;
+            border-radius: 100px;
+            background: linear-gradient(145deg, #4c1d958c 0%, #1e1b4b44 100%);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .interactive-container.collapsed:hover {
+            background: linear-gradient(145deg, #5b21b68c 0%, #312e8144 100%);
+            transform: translateY(-3px) scale(1.05);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 15px 30px rgba(76, 29, 149, 0.4);
+        }
+
+        /* Expanded Card State */
+        .interactive-container.expanded {
+            width: 340px;
+            height: 480px;
+            border-radius: 28px;
+            cursor: default;
+            background: linear-gradient(145deg, #60496e8c 0%, #71C4FF44 100%);
+            padding: 32px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Content Transitions - Fixed alignment and reverse effects */
+        .btn-label {
+            position: absolute;
+            font-weight: 800;
+            letter-spacing: 0.15em;
+            text-indent: 0.15em; /* Offsets the letter-spacing to ensure perfect center */
+            color: white;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .expanded .btn-label {
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(0.8);
+            pointer-events: none;
+        }
+
+        .card-content {
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(0.95);
+            transition: opacity 0.4s ease 0.1s, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .expanded .card-content {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+
+        /* 3D Depth */
+        .inner-depth {
+            transform: translateZ(40px);
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background-color: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 12px #10b981;
+        }
+
+        .btn-contact {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(4px);
+            transition: all 0.2s ease;
+        }
+
+        .btn-contact:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: rgba(255,255,255,0.4);
+            transition: color 0.2s;
+            cursor: pointer;
+            z-index: 10;
+        }
+        .close-btn:hover { color: white; }
+
+        /* --- FOOTER NAV LINKS --- */
+        .footer-link {
+            position: relative;
+            color: #a1a1aa;
+            transition: color 0.3s ease;
+        }
+        .footer-link:hover {
+            color: #fff;
+        }
+        .footer-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 1px;
+            bottom: -2px;
+            left: 0;
+            background-color: #71C4FF;
+            transition: width 0.3s ease;
+        }
+        .footer-link:hover::after {
+            width: 100%;
+        }
+
+        /* --- RESPONSIVE ADJUSTMENTS --- */
+        @media (max-width: 640px) {
+            .interactive-container.expanded {
+                width: 90vw;
+                height: 460px;
+                padding: 24px;
+            }
+        }
+    </style>
+  <!-- Main Page Content Filler -->
+    <main class="flex-grow flex items-center justify-center p-6 text-center">
+        <div>
+            <p class="text-zinc-500 max-w-md mx-auto">
+                SMVITM    X     SangamOne Developers
+            </p>
+            <h1 class="text-4xl sm:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400 mb-4">
+                Built by a student developer 
+            </h1>
+            <p class="text-zinc-500 max-w-md mx-auto">
+                Simplifying mark entry with AI and automation.
+            </p>
+
+        </div>
+    </main>
+    <div class="max-w-6xl w-full flex flex-col items-center gap-12">
+        <!-- THE INTERACTIVE COMPONENT -->
+        <div class="glow-wrapper">
+            <div id="container" class="interactive-container collapsed" onclick="expandContainer(event)">
+                
+                <!-- Button Label (Visible when collapsed) -->
+                <span class="btn-label">DEV</span>
+
+                <!-- Profile Card Content (Visible when expanded) -->
+                <div class="card-content">
+                    <div class="close-btn" onclick="collapseContainer(event)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </div>
+
+                    <div class="inner-depth w-full">
+                        <!-- Avatar -->
+                        <div class="relative w-34 h-34 mx-auto mb-6 mt-4">
+                            <img src="adi.png" style="width: 700px;" alt="Aditya Nayak" class="w-full h-full rounded-full bg-zinc-800 border-2 border-white/20 shadow-xl">
+                            <div class="absolute bottom-1 right-1 bg-zinc-900/95 border border-white/10 px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-lg">
+                                <span class="status-dot"></span>
+                                <span class="text-[9px] font-bold text-white uppercase tracking-widest">Pixels and coffee</span>
+                            </div>
+                        </div>
+
+                        <h2 class="text-white text-2xl font-bold tracking-tight mb-1">Aditya Nayak</h2>
+                        <p class="text-blue-300 text-sm font-medium mb-1">Aspiring Software Dev</p>
+                        <p class="text-blue-300 text-sm font-medium mb-1"> CSE 1st Sem</p>
+                        <p class="text-zinc-400 text-xs font-mono mb-10 tracking-wider">@adistar_adi</p>
+
+                        <button id="contactBtn" class="btn-contact w-full py-3.5 rounded-xl text-white text-sm font-bold flex items-center justify-center gap-3 group">
+                            <span>Contact Me</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-300 transition-transform group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FOOTER LINKS & INFO -->
+        <div class="w-full flex flex-col md:flex-row items-center justify-between gap-8 pt-8 border-t border-white/5">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center font-black text-white text-lg italic shadow-lg shadow-purple-500/20">
+                    AN
+                </div>
+                <div class="flex flex-col text-left">
+                    <span class="text-white font-bold text-sm tracking-wide uppercase">Aditya Nayak</span>
+                    <span class="text-zinc-500 text-[11px]">© 2026 • All rights reserved</span>
+                      <p class="text-gray-400 max-w-xs">VibeCoded*</p>
+                </div>
+            </div>
+
+            <nav class="flex flex-wrap justify-center gap-x-10 gap-y-4">
+                  <a href="termsconditions.html" class="footer-link text-sm font-medium">Terms & Conditions</a>
+                <a href="https://adistarportfolio.netlify.app/" class="footer-link text-sm font-medium">Portfolio</a>
+                <a href="https://github.com/CoderAdityaNayak" class="footer-link text-sm font-medium">GitHub</a>
+                <a href="https://www.linkedin.com/in/adityanayak-adistar/" class="footer-link text-sm font-medium">LinkedIn</a>
+            </nav>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            const container = document.getElementById('container');
+            const contactBtn = document.getElementById('contactBtn');
+            let isExpanded = false;
+
+            window.expandContainer = function(e) {
+                if (isExpanded) return;
+                isExpanded = true;
+                container.classList.remove('collapsed');
+                container.classList.add('expanded');
+            };
+
+            window.collapseContainer = function(e) {
+                e.stopPropagation(); 
+                isExpanded = false;
+                container.classList.remove('expanded');
+                container.classList.add('collapsed');
+                container.style.transition = 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.6s, height 0.6s';
+                container.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg)`;
+            };
+
+            const enableTilt = true;
+            const enableMobileTilt = false;
+
+            container.addEventListener('mousemove', (e) => {
+                if (!isExpanded || !enableTilt) return;
+                const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+                if (isTouch && !enableMobileTilt) return;
+
+                const rect = container.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                const rotateX = ((y - centerY) / centerY) * -10;
+                const rotateY = ((x - centerX) / centerX) * 10;
+                
+                container.style.transition = 'transform 0.1s ease-out';
+                container.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+            });
+
+            container.addEventListener('mouseleave', () => {
+                if (!isExpanded) return;
+                container.style.transition = 'transform 0.5s ease-out';
+                container.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg)`;
+            });
+
+            contactBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const originalHTML = contactBtn.innerHTML;
+                contactBtn.innerHTML = '<span class="animate-pulse">Opening Mail...</span>';
+                setTimeout(() => { contactBtn.innerHTML = originalHTML; }, 2000);
+            });
+        })();
+    </script>
+</section>
+</body>
+</html>
