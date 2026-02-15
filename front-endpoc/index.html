@@ -203,10 +203,288 @@
             filter: blur(60px);
         }
 
+        /* Modal Backdrop */
+        #modalOverlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        #modalOverlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Modal Container - SHARP & COLORFUL */
+        #modalContent {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px) saturate(200%);
+            -webkit-backdrop-filter: blur(20px) saturate(200%);
+            border: 2px solid var(--glass-border);
+            border-radius: 0; 
+            padding: 3.5rem;
+            max-width: 600px;
+            width: 90%;
+            position: relative;
+            box-shadow: 0 0 40px var(--neon-glow), 
+                        inset 0 0 30px rgba(255, 95, 31, 0.1);
+            transform: scale(0.8) translateY(20px);
+            transition: all 0.7s cubic-bezier(0.19, 1, 0.22, 1);
+            text-align: center;
+        }
+
+        #modalOverlay.active #modalContent {
+            transform: scale(1) translateY(0);
+        }
+
+        #modalContent.closing {
+            transform: scale(0.5) rotateY(45deg);
+            filter: blur(20px);
+            opacity: 0;
+        }
+
+        /* Close Button - Sharp */
+     
+
+        .close-btn:hover {
+            
+            transform: scale(1.1);
+        }
+
+        /* Line by Line Entrance */
+        .reveal-line {
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.8s ease, transform 0.8s ease;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        #modalOverlay.active .reveal-line {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Color Loop Animation */
+        .color-loop {
+            animation: orangeWhiteLoop 4s infinite ease-in-out;
+            font-weight: 700;
+        }
+
+        @keyframes orangeWhiteLoop {
+            0%, 100% { color: var(--neon-orange); text-shadow: 0 0 10px var(--neon-glow); }
+            50% { color: #ffffff; text-shadow: 0 0 5px rgba(255,255,255,0.3); }
+        }
+
+        /* Waving Hand */
+        .waving-hand {
+            display: inline-block;
+            animation: wave 2.5s infinite;
+            transform-origin: 70% 70%;
+            font-size: 1.5rem;
+            margin-left: 8px;
+        }
+
+        @keyframes wave {
+            0% { transform: rotate( 0.0deg) }
+           10% { transform: rotate(14.0deg) }
+           20% { transform: rotate(-8.0deg) }
+           30% { transform: rotate(14.0deg) }
+           40% { transform: rotate(-4.0deg) }
+           50% { transform: rotate(10.0deg) }
+           60% { transform: rotate( 0.0deg) }
+          100% { transform: rotate( 0.0deg) }
+        }
+
+        /* Wipe Animation */
+        .text-container {
+            position: relative;
+            min-height: 240px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .message {
+            position: absolute;
+            width: 100%;
+            transition: clip-path 0.8s ease-in-out, opacity 0.5s ease;
+        }
+
+        .wipe-out {
+            clip-path: inset(0 0 0 100%);
+            opacity: 0;
+        }
+
+        .wipe-in {
+            clip-path: inset(0 0 0 0);
+            animation: wipeInEffect 0.8s ease-in-out forwards;
+        }
+
+        @keyframes wipeInEffect {
+            from { clip-path: inset(0 100% 0 0); opacity: 0; }
+            to { clip-path: inset(0 0 0 0); opacity: 1; }
+        }
+
+        .accent-text {
+            color: var(--neon-orange);
+            text-shadow: 0 0 10px var(--neon-glow);
+        }
+
+        /* Typewriter Cursor */
+        .cursor {
+            border-right: 2px solid var(--neon-orange);
+            animation: blink 0.75s step-end infinite;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            from, to { border-color: transparent }
+            50% { border-color: var(--neon-orange); }
+        }
+           :root {
+            /* Neon Orange Glass Palette */
+            --glass-bg: rgba(255, 100, 0, 0.08);
+            --glass-border: rgba(255, 120, 0, 0.4);
+            --neon-orange: #FF5F1F;
+            --neon-glow: rgba(255, 95, 31, 0.5);
+            --glass-shadow: rgba(0, 0, 0, 0.6);
+        }
     </style>
 </head>
 <body>
 
+    <!-- Modal Overlay -->
+    <div id="modalOverlay">
+        <div id="modalContent">
+            <button class="close-btn" id="closeBtn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            
+            <div class="text-container">
+                <div id="initialMsg" class="message">
+                    <h2 class="text-3xl font-black mb-6 tracking-tighter uppercase italic reveal-line" style="transition-delay: 0.1s;">
+                    Namaste <span id="dynamicGreeting">Visitor</span><span id="cursor" class="cursor"></span>. <span class="waving-hand">👋</span>
+                    </h2>
+                    <div class="text-gray-200 leading-relaxed text-base border-l-4 border-orange-500 pl-4 text-left">
+                        <span class="reveal-line" style="transition-delay: 0.3s;">
+                            This project is currently a <span class="color-loop">proof of concept</span>, 
+                        </span>
+                        <span class="reveal-line" style="transition-delay: 0.6s;">
+                            and development has been paused.
+                        </span>
+                        <span class="reveal-line" style="transition-delay: 0.9s;">
+                            While the system demonstrates the architecture,
+                        </span>
+                        <span class="reveal-line" style="transition-delay: 1.2s;">
+                            it is not fully functional at this stage. 
+                        </span>
+                        <span class="reveal-line" style="transition-delay: 1.5s;">
+                            Please feel free to explore for learning purposes.
+                        </span>
+                    </div>
+                </div>
+
+                <div id="closingMsg" class="message opacity-0" style="clip-path: inset(0 100% 0 0);">
+                    <h2 class="text-5xl font-black tracking-tighter accent-text uppercase italic">AutoGrade</h2>
+                    <p class="text-white mt-4 tracking-widest uppercase text-sm font-bold">Thanks for Visiting</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.onload = () => {
+            const overlay = document.getElementById('modalOverlay');
+            const content = document.getElementById('modalContent');
+            const closeBtn = document.getElementById('closeBtn');
+            const initialMsg = document.getElementById('initialMsg');
+            const closingMsg = document.getElementById('closingMsg');
+            const dynamicGreeting = document.getElementById('dynamicGreeting');
+
+            const names = ["Recruiter", "Teacher", "Friend", "Developer", "Guest"];
+            let nameIndex = 0;
+
+            function sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            async function typeText(text, element) {
+                for (let i = 0; i <= text.length; i++) {
+                    element.textContent = text.slice(0, i);
+                    // Standard typing speed
+                    await sleep(100 - (Math.random() * 50)); 
+                }
+            }
+
+            async function deleteText(element) {
+                let text = element.textContent;
+                for (let i = text.length; i >= 0; i--) {
+                    element.textContent = text.slice(0, i);
+                    await sleep(50); // Deleting is usually faster
+                }
+            }
+
+            async function cycleGreeting() {
+                // Initial wait for the modal to settle (showing "Visitor")
+                await sleep(2500); 
+
+                while (true) {
+                    // Pause on the current word for 0.5s before deletion
+                    await sleep(500);
+                    
+                    // Clear the name to "Hello ."
+                    await deleteText(dynamicGreeting);
+                    
+                    // Wait 1 second on the "." state (empty name)
+                    await sleep(1000);
+
+                    // Type in the new name
+                    await typeText(names[nameIndex], dynamicGreeting);
+                    
+                    nameIndex = (nameIndex + 1) % names.length;
+                    
+                    // Pause for 2 seconds so the user can read the name
+                    await sleep(2000); 
+                }
+            }
+
+            // Open Modal after slight delay
+            setTimeout(() => {
+                overlay.classList.add('active');
+                cycleGreeting(); // Start the typewriter cycle
+            }, 600);
+
+            closeBtn.addEventListener('click', () => {
+                // Step 1: Wipe Out Initial Text
+                initialMsg.classList.add('wipe-out');
+                
+                // Step 2: Wipe In Closing Text
+                setTimeout(() => {
+                    initialMsg.style.display = 'none';
+                    closingMsg.classList.remove('opacity-0');
+                    closingMsg.classList.add('wipe-in');
+                }, 400);
+
+                // Step 3: Morph Close after 2 seconds
+                setTimeout(() => {
+                    content.classList.add('closing');
+                    setTimeout(() => {
+                        overlay.classList.remove('active');
+                    }, 700);
+                }, 2400);
+            });
+        };
+    </script>
     <div class="grain-overlay"></div>
     <div class="interactive-bg" id="mouse-glow"></div>
     <canvas id="ghost-canvas"></canvas>
